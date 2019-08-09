@@ -20,8 +20,24 @@ object MainRoute {
         Flow[ByteString].map(byteString => byteString ++ newline)
       )
 
-  def route: Route = get {
-    complete(DataSource.source)
-  }
+  def route: Route =
+    path("finite") {
+      get {
+        complete(DataSource.source)
+      }
+    } ~
+      path("infinite") {
+        get {
+          complete(DataSource.iSource)
+        } ~
+        put {
+          complete {
+            val of = DataSource.flag
+            val nf = !of
+            DataSource.flag = nf
+            s"old flag:$of, new flag:$nf\n"
+          }
+        }
+      }
 
 }
