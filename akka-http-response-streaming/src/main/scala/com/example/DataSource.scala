@@ -1,7 +1,7 @@
 package com.example
 
 import akka.NotUsed
-import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.{Flow, Source}
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -35,6 +35,18 @@ object DataSource {
               dc
             }
             .takeWhile(_ => flag))
-      .throttle(1, 2.second)
+      .throttle(1, 1.second)
+
+  def iSourceFlow: Source[DataChunk, NotUsed] =
+    iSource.via(
+      //Similar to fold but is not a terminal operation,
+      // emits its current value which starts at zero and then applies the current
+      // and next value to the given function f, emitting the next current value
+      Flow[DataChunk].scan(DataChunk(0, ""))(
+        (acc, dc) => acc.copy(id = acc.id + dc.id, data = acc.data + dc.data)
+      )
+    )
+
+  //def iSourceCombine=iSource.combine()
 
 }

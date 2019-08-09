@@ -1,6 +1,9 @@
 package com.example
 
-import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
+import akka.http.scaladsl.common.{
+  EntityStreamingSupport,
+  JsonEntityStreamingSupport
+}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -26,18 +29,26 @@ object MainRoute {
         complete(DataSource.source)
       }
     } ~
-      path("infinite") {
-        get {
-          complete(DataSource.iSource)
+      pathPrefix("infinite") {
+        pathEnd {
+          get {
+            complete(DataSource.iSource)
+          } ~
+            put {
+              complete {
+                val of = DataSource.flag
+                val nf = !of
+                DataSource.flag = nf
+                s"old flag:$of, new flag:$nf\n"
+              }
+            }
         } ~
-        put {
-          complete {
-            val of = DataSource.flag
-            val nf = !of
-            DataSource.flag = nf
-            s"old flag:$of, new flag:$nf\n"
+          path("flow") {
+            get {
+              complete(DataSource.iSourceFlow)
+            }
           }
-        }
+
       }
 
 }
