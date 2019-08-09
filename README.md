@@ -1,0 +1,2 @@
+# resources
+My akka exercises
