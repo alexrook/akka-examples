@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false" debug="false">
+
+    <appender name="CA" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.out</target>
+        <encoder>
+            <pattern>[%d{dd/MM/yyyy HH:mm:ss}] %highlight(%-7([%level])) %cyan(%-25logger{25}) - %msg %n</pattern>
+        </encoder>
+    </appender>
+
+    <root>
+        <appender-ref ref="CA"/>
+    </root>
+
+</configuration>

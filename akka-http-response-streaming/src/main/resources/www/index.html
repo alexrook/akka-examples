@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <title>HTTP chunked demo</title>
+</head>
+
+<body>
+
+    <h2>HTTP chunked demo</h2>
+
+    <h3>API `GET /users/docs`</h3>
+    <p>Last chunk wins</p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">User</th>
+                <th scope="col">Docs</th>
+            </tr>
+        </thead>
+        <tbody class="userdocs">
+        </tbody>
+    </table>
+
+    <h3>API `GET /users`</h3>
+    <p>All chunks matter</p>
+    <ol id="users"></ol>
+
+    <h4>Console</h4>
+    <div id="console"></div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="?r=jsonpipe.js"></script>
+    <script src="?r=demo.js"></script>
+
+</body>
+
+</html>
