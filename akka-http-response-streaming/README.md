@@ -1,13 +1,25 @@
-Blog article is at https://richardimaoka.github.io/blog/akka-http-response-streaming/
+The API's:
 
-Do the following to run the example,
+ * `GET finite`
+ * `GET infinite`
+ * `PUT infinite`
+ * `PUT infinite/flow`
+ * `GET users`
+ * `GET users/docs`
 
-> git clone https://github.com/richardimaoka/resources.git
-> cd resources
-> cd akka-http-response-streaming
-> sbt
-> run
 
-and access to http://localhost:8080/ from your browser.
-
-![](json-streaming-demo1.gif)
+Demo `http://localhost:9027/demo` 
+ 
+Partial results for heavy requests using `akka` and `http` chunked streams.
+ 
+ Cons:
+ * Could not find a way to join large tables.
+   If there is one large table and several small ones, then this can be done.
+ * Special handling of such APIs is required.
+ 
+ Pros:
+ * The API responds immediately. 
+   Perhaps this will be convenient when grouping on a large table and displaying status. For example, a red / green indicator.
+   
+ Launch
+   `sbt assembly` and `java -jar ...` on the .9 or .21 server
