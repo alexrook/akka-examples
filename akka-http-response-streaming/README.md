@@ -3,7 +3,7 @@ The API's:
  * `GET finite`
  * `GET infinite`
  * `PUT infinite`
- * `PUT infinite/flow`
+ * `GET infinite/flow`
  * `GET users`
  * `GET users/docs`
 
