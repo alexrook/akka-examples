@@ -54,7 +54,6 @@ object MainRoute {
       pathPrefix("infinite") {
         pathEnd {
           get {
-
             complete(DataSource.iSource)
           } ~
           put {
@@ -68,7 +67,6 @@ object MainRoute {
         } ~
         path("flow") {
           get {
-
             complete(DataSource.iSourceFlow)
           }
         }
@@ -98,6 +96,11 @@ object MainRoute {
             parameter("f".as[String]) { f: String =>
               complete(DataSource.hbFileUsers(f))
             }
+          }
+        } ~
+        pathEnd {
+          get {
+            complete(DataSource.hbFilesWithUsers)
           }
         }
       }

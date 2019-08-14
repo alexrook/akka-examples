@@ -23,4 +23,8 @@ object models {
 
   implicit val userDocsJsonFormat: RootJsonFormat[UserDocs] = jsonFormat2(UserDocs)
 
+  case class FileUser(file: String, user: String)
+
+  implicit val fileUserJsonFormat: RootJsonFormat[FileUser] = jsonFormat2(FileUser)
+
 }

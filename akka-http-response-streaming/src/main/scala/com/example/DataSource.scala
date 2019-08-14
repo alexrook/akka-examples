@@ -149,7 +149,7 @@ object DataSource {
 
   def hbFileUsers(file: String): Source[String, NotUsed] = {
 
-    val tableSettings: HTableSettings[UserDocs] =
+    val tableSettings: HTableSettings[String] =
       HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), _ => List.empty)
 
     val filter = new SingleColumnValueFilter(information, Bytes.toBytes("file"), CompareOp.EQUAL, Bytes.toBytes(file))
@@ -166,7 +166,7 @@ object DataSource {
 
   def hbUserFiles(user: String): Source[String, NotUsed] = {
 
-    val tableSettings: HTableSettings[UserDocs] =
+    val tableSettings: HTableSettings[String] =
       HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), _ => List.empty)
 
     val filter = new SingleColumnValueFilter(information, Bytes.toBytes("user"), CompareOp.EQUAL, Bytes.toBytes(user))
@@ -179,6 +179,26 @@ object DataSource {
       .map { ret: Result =>
         Bytes.toString(CellUtil.cloneValue(ret.getColumnLatestCell(information, Bytes.toBytes("file"))))
       }
+  }
+
+  def hbFilesWithUsers: Source[FileUser, NotUsed] = {
+
+    val tableSettings: HTableSettings[FileUser] =
+      HTableSettings(hBaseConfig, TableName.valueOf("Dathena:DOCMETA"), immutable.Seq("Information"), _ => List.empty)
+
+    val scan = new Scan()
+
+    HTableStage
+      .source(scan, tableSettings)
+      .flatMapMerge(
+        24 /*parallelism ?*/,
+        (ret: Result) => {
+          val file: String = Bytes.toString(CellUtil.cloneValue(ret.getColumnLatestCell(information, Bytes.toBytes("remotePath"))))
+          hbFileUsers(file).map { user: String =>
+            FileUser(file, user)
+          }
+        }
+      )
   }
 
   lazy val hBaseConfig: Configuration = {
