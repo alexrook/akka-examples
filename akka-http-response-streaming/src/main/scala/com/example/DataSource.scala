@@ -8,8 +8,10 @@ import java.io.FileInputStream
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{Mutation, Result, Scan}
+import org.apache.hadoop.hbase.filter.CompareFilter.CompareOp
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
+import org.apache.hadoop.hbase.{CellUtil, HBaseConfiguration, TableName}
 
 import akka.NotUsed
 import akka.stream.alpakka.hbase.HTableSettings
@@ -22,20 +24,35 @@ object DataSource {
 
   var flag = true
 
-  def source: Source[DataChunk, NotUsed] =
-    Source(
-      List(
-        DataChunk(1, "the first"),
-        DataChunk(2, "the second"),
-        DataChunk(3, "the third"),
-        DataChunk(4, "the fourth"),
-        DataChunk(5, "the fifth"),
-        DataChunk(6, "the sixth")
-      )
-      // you need throttling for demonstration, otherwise
-      // it's too fast and you don't see what's happening
-    ).throttle(1, 1.second)
+  //finite
+  def source = Source(
+    List(
+      DataChunk(1, "the first"),
+      DataChunk(2, "the second"),
+      DataChunk(3, "the third"),
+      DataChunk(4, "the fourth"),
+      DataChunk(5, "the fifth"),
+      DataChunk(6, "the sixth")
+    )
+  )
+  // you need throttling for demonstration, otherwise
+  // it's too fast and you don't see what's happening
+  def thrSource: Source[DataChunk, NotUsed] = source.throttle(1, 1.second)
 
+  def sourceConcat: Source[DataChunk, NotUsed] = {
+    val exMap: Map[Int, Seq[String]] =
+      Map(1 -> Seq("a", "b", "c"), 2 -> Seq("d", "e", "f"), 3 -> Seq("g", "h", "i"), 4 -> Seq("j", "k", "l"), 5 -> Seq("m", "n", "o"))
+    source.via {
+      Flow[DataChunk].flatMapMerge(5, (dc: DataChunk) => {
+        println(dc)
+        val list = (exMap.getOrElse(dc.id, Seq.empty) :+ "-").toList
+        println(list.mkString(","))
+        Source(list).map(DataChunk(dc.id, _))
+      })
+    }
+  }.throttle(1, 1.second)
+
+  //infinite
   def iSource: Source[DataChunk, NotUsed] =
     Source
       .fromIterator(
@@ -60,10 +77,13 @@ object DataSource {
     )
 
 //HBase
+  val information: Array[Byte] = Bytes.toBytes("Information")
+  val attributes:  Array[Byte] = Bytes.toBytes("Attributes")
+
   def hbUsersSource: Source[User, NotUsed] = {
     val uConv: User => immutable.Seq[Mutation] = _ => List.empty
     val tableSettings: HTableSettings[User] =
-      HTableSettings(getHBaseConfig, TableName.valueOf("Dathena:USERS"), immutable.Seq("Attributes"), uConv)
+      HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USERS"), immutable.Seq("Attributes"), uConv)
 
     val scan = new Scan()
 
@@ -74,7 +94,7 @@ object DataSource {
           import scala.collection.JavaConverters._
 
           val m: Map[String, String] =
-            ret.getFamilyMap(Bytes.toBytes("Attributes")).asScala.toMap.map {
+            ret.getFamilyMap(attributes).asScala.toMap.map {
               case (c, v) => (Bytes.toString(c), Bytes.toString(v))
             }
 
@@ -92,45 +112,76 @@ object DataSource {
   }
 
   def hbUserDocs: Source[Seq[UserDocs], NotUsed] = {
+    import scala.collection.JavaConverters._
+
     val conv: UserDocs => immutable.Seq[Mutation] = _ => List.empty
     val tableSettings: HTableSettings[UserDocs] =
-      HTableSettings(getHBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), conv)
+      HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), conv)
 
     val scan = new Scan()
 
     HTableStage
       .source(scan, tableSettings)
-      .via {
-        Flow[Result].map { ret: Result =>
-          import scala.collection.JavaConverters._
-
-          val m: Map[String, String] =
-            ret.getFamilyMap(Bytes.toBytes("Information")).asScala.toMap.map {
-              case (c, v) => (Bytes.toString(c), Bytes.toString(v))
-            }
-
-          m.get("user").map { user: String =>
-            user -> 1L
+      .map { ret: Result =>
+        val m: Map[String, String] =
+          ret.getFamilyMap(information).asScala.toMap.map {
+            case (c, v) => (Bytes.toString(c), Bytes.toString(v))
           }
-        }
+
+        for {
+          user: String <- m.get("user")
+          _ <- m.get("file")
+        } yield user
+
       }
-      .via {
-        Flow[Option[(String, Long)]]
-          .scan(Map.empty[String, UserDocs]) { (acc: Map[String, UserDocs], pair: Option[(String, Long)]) =>
-            pair
-              .map {
-                case (user: String, doc: Long) => {
-                  val old = acc.getOrElse(user, UserDocs(user, 0L))
-                  acc.updated(user, UserDocs(user, old.docs + doc))
-                }
-              }
-              .getOrElse(acc)
+      .scan(Map.empty[String, UserDocs]) { (acc: Map[String, UserDocs], pair: Option[String]) =>
+        pair
+          .map { user: String =>
+            {
+              val old: UserDocs = acc.getOrElse(user, UserDocs(user, 0L))
+              acc.updated(user, UserDocs(user, old.docs + 1))
+            }
           }
+          .getOrElse(acc)
       }
       .map(_.values.toSeq)
   }
 
-  private def getHBaseConfig: Configuration = {
+  def hbFileUsers(file: String): Source[String, NotUsed] = {
+
+    val tableSettings: HTableSettings[UserDocs] =
+      HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), _ => List.empty)
+
+    val filter = new SingleColumnValueFilter(information, Bytes.toBytes("file"), CompareOp.EQUAL, Bytes.toBytes(file))
+    val scan   = new Scan()
+
+    scan.setFilter(filter)
+
+    HTableStage
+      .source(scan, tableSettings)
+      .map { ret: Result =>
+        Bytes.toString(CellUtil.cloneValue(ret.getColumnLatestCell(information, Bytes.toBytes("user"))))
+      }
+  }
+
+  def hbUserFiles(user: String): Source[String, NotUsed] = {
+
+    val tableSettings: HTableSettings[UserDocs] =
+      HTableSettings(hBaseConfig, TableName.valueOf("Dathena:USER-DOC"), immutable.Seq("Information"), _ => List.empty)
+
+    val filter = new SingleColumnValueFilter(information, Bytes.toBytes("user"), CompareOp.EQUAL, Bytes.toBytes(user))
+    val scan   = new Scan()
+
+    scan.setFilter(filter)
+
+    HTableStage
+      .source(scan, tableSettings)
+      .map { ret: Result =>
+        Bytes.toString(CellUtil.cloneValue(ret.getColumnLatestCell(information, Bytes.toBytes("file"))))
+      }
+  }
+
+  lazy val hBaseConfig: Configuration = {
     val config: Configuration = new Configuration(false)
 
     config.addResource(new FileInputStream("/etc/hbase/conf/hbase-site.xml"))

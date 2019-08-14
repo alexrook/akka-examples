@@ -1,5 +1,6 @@
 package com.example
 
+import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, ResponseEntity}
@@ -27,6 +28,8 @@ object MainRoute {
 
   }
 
+  import StreamingJson.chunkJson
+
   def route: Route =
     path("demo") {
       get {
@@ -36,16 +39,22 @@ object MainRoute {
         }
       }
     } ~
-      path("finite") {
-        get {
-          import StreamingJson.chunkJson
-          complete(DataSource.source)
+      pathPrefix("finite") {
+        pathEnd {
+          get {
+            complete(DataSource.thrSource)
+          }
+        } ~
+        path("concat") {
+          get {
+            complete(DataSource.sourceConcat)
+          }
         }
       } ~
       pathPrefix("infinite") {
         pathEnd {
           get {
-            import StreamingJson.chunkJson
+
             complete(DataSource.iSource)
           } ~
           put {
@@ -59,7 +68,7 @@ object MainRoute {
         } ~
         path("flow") {
           get {
-            import StreamingJson.chunkJson
+
             complete(DataSource.iSourceFlow)
           }
         }
@@ -67,15 +76,28 @@ object MainRoute {
       } ~
       pathPrefix("users") {
         pathEnd {
-          import StreamingJson.chunkJson
           complete(DataSource.hbUsersSource)
         } ~
         path("docs") {
           get {
-            import spray.json.DefaultJsonProtocol._
-
-            import StreamingJson.chunkJson
             complete(DataSource.hbUserDocs)
+          }
+        } ~
+        path("file") {
+          get {
+            parameter("f".as[String]) { f: String =>
+              complete(DataSource.hbFileUsers(f))
+            }
+          }
+        }
+
+      } ~
+      pathPrefix("files") {
+        path("user") {
+          get {
+            parameter("f".as[String]) { f: String =>
+              complete(DataSource.hbFileUsers(f))
+            }
           }
         }
       }
