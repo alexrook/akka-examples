@@ -26,8 +26,7 @@ lazy val root = (project in file("."))
       "org.apache.hadoop" % "hadoop-common" % "2.7.1" excludeAll ExclusionRule(
         organization = "javax.servlet"),
       "org.apache.hbase" % "hbase-common" % "1.1.2",
-      "org.apache.hbase" % "hbase-client" % "1.1.2",
-      "org.apache.hadoop" % "hadoop-core" % "1.2.1"
+      "org.apache.hbase" % "hbase-client" % "1.1.2"
     ),
     mainClass := Some("com.example.Main"),
     resolvers ++= Seq("Dathena" at "http://repository.dathena.io/repository/dathena-main")
